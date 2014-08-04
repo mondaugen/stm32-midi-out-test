@@ -1,7 +1,8 @@
 # The driver is compiled in different ways, depending on what chip we are
 # compiling for.
 
-STM_CHIP_SET=STM32F40_41xxx
+DEBUG_BUILD=1
+STM_CHIP_SET=STM32F429_439xx
 STM_DRIVER_PATH = $(HOME)/Documents/archives/STM32F4xx_DSP_StdPeriph_Lib_V1.3.0/Libraries/STM32F4xx_StdPeriph_Driver
 STM_DRIVER_HDRS_STD = stm32f4xx_adc.h \
 					  stm32f4xx_crc.h \
@@ -86,14 +87,17 @@ BIN = main.elf
 # building for stm32f407 which is part of the family of chips with similar
 # peripherals, therefore the following is defined
 DEFS    = USE_STDPERIPH_DRIVER $(STM_CHIP_SET)#STM32F429_439xx
-CFLAGS  = -g3 -Wall -ffunction-sections -fdata-sections
+CFLAGS  = -ggdb3 -gdwarf-4 -Wall -ffunction-sections -fdata-sections
 CFLAGS += -mlittle-endian -mthumb -mcpu=cortex-m4 -mthumb-interwork
-CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O0
+CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O0 -dD
 CFLAGS += $(foreach inc,$(INC),-I$(inc))
 CFLAGS += $(foreach def,$(DEFS),-D$(def))
 
-LDSCRIPT = stm32f407VG_flash.ld
-LDFLAGS = -T $(LDSCRIPT) -Xlinker --gc-sections
+LDSCRIPT = STM32F429ZI_FLASH.ld
+LDFLAGS = -T$(LDSCRIPT) -Xlinker
+ifeq ($(DEBUG_BUILD),1)
+	LDFLAGS += --gc-sections
+endif
 
 CC = arm-none-eabi-gcc
 
