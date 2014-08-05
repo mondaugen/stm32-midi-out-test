@@ -3,8 +3,10 @@
 #include "stm32f4xx_conf.h" 
 
 #define MIDI_BAUD_RATE 31250
+#define RANDOM_NOTES 0 
 
 GPIO_InitTypeDef  GPIO_USART_InitStruct;
+GPIO_InitTypeDef  GPIO_Trig_InitStruct;
 USART_InitTypeDef  USART_InitStruct;
 
 void Delay(__IO uint32_t nCount);
@@ -26,10 +28,11 @@ int main(void)
 
   while (1)
   {
+#if RANDOM_NOTES
       uint8_t note = (uint8_t)(127 * drand48());
       uint8_t vel  = (uint8_t)(127 * drand48());
       uint32_t delay = (uint32_t)((0xffffff) * drand48()) / 100;
-      /* Send note on channel 1 */
+      /* Send note on channel 10 */
       while(!(UART5->SR & USART_SR_TC));
       USART_SendData(UART5, 0x99);
       while(!(UART5->SR & USART_SR_TC));
@@ -50,6 +53,37 @@ int main(void)
 
       /* Insert delay */
       Delay(delay);
+#else
+      uint8_t note = (uint8_t)(60);
+      uint8_t vel  = (uint8_t)(100);
+      uint32_t delay = (uint32_t)(0xffff);
+      /* Send trigger */
+      GPIO_SetBits(GPIOA, GPIO_Pin_5);
+      Delay(0xff);
+      GPIO_ResetBits(GPIOA, GPIO_Pin_5);
+
+      /* Send note on channel 1 */
+      while(!(UART5->SR & USART_SR_TC));
+      USART_SendData(UART5, 0x90);
+      while(!(UART5->SR & USART_SR_TC));
+      USART_SendData(UART5, note);
+      while(!(UART5->SR & USART_SR_TC));
+      USART_SendData(UART5, vel);
+    
+      /* Insert delay */
+      Delay(delay);
+
+      /* Send note off */
+      //while(!(UART5->SR & USART_SR_TC));
+      //USART_SendData(UART5, 0x80);
+      //while(!(UART5->SR & USART_SR_TC));
+      //USART_SendData(UART5, note);
+      //while(!(UART5->SR & USART_SR_TC));
+      //USART_SendData(UART5, 0);
+
+      /* Insert delay */
+      //Delay(delay);
+#endif /* RANDOM_NOTES */
   }
 }
 
@@ -70,6 +104,7 @@ void UART5_Enable_Tx(void)
     /* Enable Clocks */
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_UART5, ENABLE);
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 
     /* Set up GPIO for alternate function */
     GPIO_PinAFConfig(GPIOC,GPIO_PinSource12,GPIO_AF_UART5);
@@ -81,6 +116,14 @@ void UART5_Enable_Tx(void)
     GPIO_USART_InitStruct.GPIO_Speed = GPIO_Speed_100MHz;
     GPIO_USART_InitStruct.GPIO_Pin = GPIO_Pin_12;
     GPIO_Init(GPIOC, &GPIO_USART_InitStruct);
+
+    /* Configure GPIO To make a trigger */
+    GPIO_Trig_InitStruct.GPIO_Mode = GPIO_Mode_OUT;
+    GPIO_Trig_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_Trig_InitStruct.GPIO_OType = GPIO_OType_PP;
+    GPIO_Trig_InitStruct.GPIO_Speed = GPIO_Speed_100MHz;
+    GPIO_Trig_InitStruct.GPIO_Pin = GPIO_Pin_5;
+    GPIO_Init(GPIOA, &GPIO_Trig_InitStruct);
 
     /* Configure USART */
     USART_InitStruct.USART_BaudRate = MIDI_BAUD_RATE;
